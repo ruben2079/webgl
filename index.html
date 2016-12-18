@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1">
+<title>Ruben Guzman - HTML5 | WebGL</title>
+<script src="js/jquery-1.11.0.min.js"></script>
+<script src="js/three.min.js"></script>
+<script src="js/stats.min.js"></script>
+<script src="js/dat.gui.min.js"></script>
+<script src="js/helvetiker_regular.typeface.js"></script>
+<script>
+$(function(){
+
+	var fov = 45, aspect = window.innerWidth / window.innerHeight, near = 0.1, far = 1000, skyColor = "#e3f0ff";
+	var scene = new THREE.Scene();
+	var camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+	var renderer = new THREE.WebGLRenderer();
+	renderer.setClearColor(skyColor);
+	//renderer.setClearColorHex(0xe3f0ff);
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.shadowMapEnabled = true;
+	renderer.physicallyBasedShading = true;
+	
+	var stats = initStats();
+	
+	//adding fog
+	var fogDistance = 0;
+	scene.fog = new THREE.Fog( 0xffffff, 0.015, fogDistance );
+	//scene.fog = new THREE.FogExp2( 0xffffff, 0.015, 200);
+	
+	//Ambient light
+	//var ambientLight = new THREE.AmbientLight(0x0c0c0c);
+	//scene.add(ambientLight);
+	
+	//Adding light
+	var lightColor = "#ffffff";
+	var lightPosition = 200;
+	var spotLight = new THREE.SpotLight(lightColor);
+	spotLight.position.set( -lightPosition, lightPosition, -10 );
+	spotLight.castShadow = true;
+	scene.add(spotLight);
+	
+	//sky color ground color intensity
+	var hemiLightColor = 0xffffde;
+	var hemiLight = new THREE.HemisphereLight( hemiLightColor, hemiLightColor, 0.3 );
+	scene.add(hemiLight); 
+	
+	//Display Axis on the screen
+	//X axis is colored in red
+	//Y axis is colored in green
+	//Z axis is colored in blue
+	var AxesDistance = 0;
+	var axes = new THREE.AxisHelper(AxesDistance);
+	scene.add(axes);
+	
+	var planeGeometry = new THREE.PlaneGeometry(window.innerWidth * 4,window.innerHeight * 4,1,1);
+	
+	var planeTexture = THREE.ImageUtils.loadTexture( 'texture/floor/MetalFloor4.jpg' );
+	planeTexture.wrapS = planeTexture.wrapT = THREE.RepeatWrapping;
+	planeTexture.repeat.set( 256, 256 );
+	
+	var planeMaterial = new THREE.MeshPhongMaterial({//color: 0xffffff,
+		//specular:0xffffff,
+		map: planeTexture,
+		//shininess: 10,
+		//side:THREE.DoubleSide,
+		//combine: THREE.MixOperation,
+		//reflectivity: 0.05
+	});
+	
+	var plane = new THREE.Mesh(planeGeometry,planeMaterial);
+
+	plane.rotation.x = -Math.PI/2; //-90 degrees around the xaxis
+	plane.position.x = 0;
+	plane.position.y = -1.9;
+	plane.position.z = 0;
+	plane.receiveShadow = true;
+	plane.doubleSided = true;
+	
+	scene.add(plane);
+	
+	var cubeGeometry = new THREE.CubeGeometry(7,7,7);
+	
+	var cubeTexture = THREE.ImageUtils.loadTexture( 'texture/box/crate.jpg' );
+	cubeTexture.wrapS = cubeTexture.wrapT = THREE.RepeatWrapping;
+	cubeTexture.repeat.set( 1, 1 );
+	
+	var cubeMaterial = new THREE.MeshPhongMaterial({
+		color: 0xffffff,
+		specular:0xffffff,
+		map: cubeTexture,
+		shininess: 1,
+		shading: THREE.SmoothShading
+		//side:THREE.DoubleSide,
+		//combine: THREE.MixOperation,
+		//reflectivity: 0.05
+	});
+	var cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+
+	cube.position.y = 4;
+	cube.castShadow = true;
+	
+	scene.add(cube);
+
+	var sphereGeometry = new THREE.SphereGeometry(4,20,20);
+		
+	var sphereTexture = THREE.ImageUtils.loadTexture( 'texture/planet/earth.jpg' );
+	sphereTexture.wrapS = sphereTexture.wrapT = THREE.RepeatWrapping;
+	sphereTexture.repeat.set( 1, 1 );
+	
+	var sphereMaterial = new THREE.MeshPhongMaterial({
+		color: 0xffffff,
+		specular:0xffffff,
+		map: sphereTexture,
+		shininess: 1,
+		shading: THREE.SmoothShading
+		//side:THREE.DoubleSide,
+		//combine: THREE.MixOperation,
+		//reflectivity: 0.05
+	});
+	var sphere = new THREE.Mesh(sphereGeometry,sphereMaterial);
+	sphere.castShadow = true;
+	
+	scene.add(sphere);
+	
+	//
+	var cloudGeometry = new THREE.SphereGeometry(7,25,25);
+		
+	var cloudTexture = THREE.ImageUtils.loadTexture( 'texture/cloud/earthcloudmap.jpg' );
+	cloudTexture.wrapS = cloudTexture.wrapT = THREE.RepeatWrapping;
+	cloudTexture.repeat.set( 1, 1 );
+	
+	var cloudMaterial = new THREE.MeshPhongMaterial({
+		color: 0xffffff,
+		specular:0xffffff,
+		map: cloudTexture,
+		shininess: 1,
+		shading: THREE.SmoothShading,
+		//transparent: true, opacity: 0.3
+		//side:THREE.DoubleSide,
+		//combine: THREE.MixOperation,
+		//reflectivity: 0.05
+	});
+	var cloudSphere = new THREE.Mesh(cloudGeometry,cloudMaterial);
+	//cloudSphere.castShadow = true;
+	
+	scene.add(cloudSphere);
+	
+	camera.position.x = 0;
+	camera.position.y = 20;
+	camera.position.z = 60;
+	camera.lookAt(scene.position);
+	
+	//Controls | Animation
+	var controls = new function() {
+		this.spotlightColor = lightColor;
+		this.spotlightDirection = lightPosition;
+		this.FogDistance = fogDistance;
+		this.CubeRotationSpeed = 0.02;
+		this.cubeSize = 1;
+		//this.SphereBounceSpeed = 0.03;
+		this.cloudRotationSpeed = 0.005;
+		this.cloudSize = 1;
+		this.EarthRotationSpeed = 0.003;
+		this.EarthTranslationSpeed = 0.0005;
+		this.EarthSize = 1;
+	}
+	
+	var gui = new dat.GUI();
+	gui.addColor(controls, 'spotlightColor').onChange(function(e) {
+		spotLight.color = new THREE.Color(e);
+	});
+	gui.add(controls, 'spotlightDirection',0,500);
+	gui.add(controls, 'FogDistance',0,500);
+	gui.add(controls, 'CubeRotationSpeed',0,0.5);
+	gui.add(controls, 'cubeSize',0,7);
+	//gui.add(controls, 'SphereBounceSpeed',0,0.5);
+	gui.add(controls, 'cloudRotationSpeed',0,0.5);
+	gui.add(controls, 'cloudSize',0,8);
+	gui.add(controls, 'EarthRotationSpeed',0,0.5);	
+	gui.add(controls, 'EarthTranslationSpeed',0,0.5);
+	gui.add(controls, 'EarthSize',0,7);
+			
+	$('#webgl-scene').append(renderer.domElement);
+		
+	//Render Animation
+	var step = 0, EarthRotation = 0, EarthTranslation = 0, cloudRotation;
+	function render() {
+		scene.fog = new THREE.Fog( 0xffffff, 0.015, controls.FogDistance);
+		step+=controls.EarthTranslationSpeed;
+		EarthRotation+= controls.EarthRotationSpeed;
+		cloudRotation+= controls.cloudRotationSpeed;
+		//Sphere | Bouncing
+		//sphere.position.x = 20+( 10*(Math.cos(step)));
+		//sphere.position.y = 2 +( 10*Math.abs(Math.sin(step)));
+		sphere.position.y = 10;
+		
+		//Sphere Translation (ex. Planet)
+		sphere.position.x = 1+( 30*(Math.cos(step)));
+		sphere.position.z = 1 +( 30*Math.sin(step));
+		
+		//Earth Rotation
+		sphere.rotation.y = EarthRotation;
+		sphere.scale.x = controls.EarthSize;
+		sphere.scale.y = controls.EarthSize;
+		sphere.scale.z =  controls.EarthSize;
+		
+		//
+		cloudSphere.position.y = 10;
+		
+		//Cloud Translation (ex. Planet)
+		cloudSphere.position.x = 1+( 30*(Math.cos(step)));
+		cloudSphere.position.z = 1 +( 30*Math.sin(step));
+		
+		//Cloud Rotation
+		cloudSphere.rotation.y = cloudRotation;
+		cloudSphere.scale.x = controls.cloudSize;
+		cloudSphere.scale.y = controls.cloudSize;
+		cloudSphere.scale.z =  controls.cloudSize;
+		
+		cube.scale.x = controls.cubeSize;
+		cube.scale.y = controls.cubeSize;
+		cube.scale.z = controls.cubeSize;
+		cube.rotation.x += controls.CubeRotationSpeed;
+		cube.rotation.y += controls.CubeRotationSpeed;
+		cube.rotation.z += controls.CubeRotationSpeed;
+		
+		spotLight.position.set( -controls.spotlightDirection, controls.spotlightDirection, -10 );
+				
+		stats.update();
+				
+		requestAnimationFrame(render);
+		renderer.render(scene, camera);
+	}
+	
+	//FPS 
+	function initStats() {
+		var stats = new Stats();
+		stats.setMode(0);
+		stats.domElement.style.position = 'absolute';
+		stats.domElement.style.left = '0px';
+		stats.domElement.style.top = '0px';
+		$('#stats-output').append(stats.domElement);
+		return stats;
+	}
+
+	render();
+});
+</script>
+<style>
+body {
+	margin: 0;
+}
+</style>
+</head>
+<body>
+<div id="stats-output"></div>
+<div id="webgl-scene"></div>
+</body>
+</html>
